@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import sklearn
 import math
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.linear_model import SGDClassifier
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 
@@ -18,6 +18,8 @@ class Model:
 		self.scale_data()
 
 		self.index_train, self.index_test, self.fail_train, self.fail_test = train_test_split(self.fail_indexes, self.fail_times, test_size = testSize)
+		self.index_predicted = np.zeros(len(self.index_test), dtype = int)
+		self.fail_predicted = np.zeros(len(self.fail_test), dtype = int)
 
 		self.reshape_data()
 
@@ -43,52 +45,36 @@ class Model:
 
 	#In case the data comes in 1-D arrays, this method rearranges the data into 2-D arrays.
 	def reshape_data(self):
+		#index:X(input), fail:Y(output)
 		self.index_train = self.index_train.reshape(-1, 1)
 		self.index_test = self.index_test.reshape(-1, 1)
 		self.fail_train = self.fail_train.reshape(-1, 1)
 		self.fail_test = self.fail_test.reshape(-1, 1)
 
 
-	def train_logistic_regression(self, Penalty = 'l2', maxIterations = 100, Solver = 'lbfgs'):
+	def train_logistic_regression(self, Penalty = 'l2', maxIterations = 1000, Solver = 'lbfgs'):
 		self.Model = LogisticRegression(penalty = Penalty, max_iter = maxIterations, solver = Solver)
 		self.Model.fit(self.index_train, self.fail_train)
 
 	def predict_logistic_regression(self, testSet):
 		if (testSet == 'index'):
-			#print(self.index_test)
+			print(self.index_test)
 			print('Predicted output on index_test:')
-			print(self.Model.predict(self.index_test))
+			self.index_predicted = self.Model.predict(self.index_test)
+			print(self.index_predicted)
 
 			print("Index Test RMSE:")
-			print(self.calculate_RMSE(self.index_test, self.Model.predict(self.index_test)))
+			print(self.calculate_RMSE(self.index_test, self.index_predicted))
+
 
 		elif (testSet == 'fail'):
-			#print(self.fail_test)
+			print(self.fail_test)
 			print('Predicted output on fail_test:')
-			print(self.Model.predict(self.fail_test))
+			self.fail_predicted = self.Model.predict(self.fail_test)
+			print(self.fail_predicted)
 
 			print("Fail test RMSE:")
-			print(self.calculate_RMSE(self.fail_test, self.Model.predict(self.fail_test)))
-
-	def train_LRSD(self, maxIterations = 100):
-		self.Model = SGDClassifier(loss = 'log', max_iter = maxIterations)
-		self.Model.fit(self.index_train, self.fail_train)
-
-
-	def predict_LRSD(self, testSet):
-		if (testSet == 'index'):
-			#print(self.index_test)
-			print('Predicted output on index_test:')
-			print(self.Model.predict(self.index_test))
-
-			print(self.Model.decision_function(self.index_test))
-
-		elif(testSet == 'fail'):
-			#print(self.fail_test)
-			print('Predicted output on fail_test:')
-			print(self.Model.predict(self.fail_test))
-
-			print(self.Model.decision_function(self.fail_test))
+			print(self.calculate_RMSE(self.fail_test, self.fail_predicted))
 
 
 	def calculate_RMSE(self, test_set, predicted_set):
@@ -105,14 +91,42 @@ class Model:
 	def print_params(self):
 		print(self.Model.get_params())
 
+	def plot_comparison(self, test_set, predict_set):
+		length = len(predict_set)
+
+		x1 = [i for i in range(0, length)]
+		y1 = [test_set[i][0] for i in range(0, length)]
+
+		x2 = [i for i in range(0, length)]
+		y2 = [predict_set[i] for i in range(0, length)]
+
+		plt.plot(x1, y1)
+		plt.plot(x2, y2)
+
+		plt.xlabel('index')
+		plt.ylabel('fail_times')
+		plt.show()
+
+	def graph_results(self, test_set):
+		if (test_set == 'index'):
+			self.plot_comparison(self.index_test, self.index_predicted)
+		elif(test_set == 'fail'):
+			self.plot_comparison(self.fail_test, self.fail_predicted)
 
 model = Model('model_data.xlsx', 'SYS1')
 
-max_iteration = 1000
-solver = 'saga'
-penalty = 'l1'
+max_iteration = 10000
+solver = 'lbfgs'
+penalty = 'none'
 model.train_logistic_regression(penalty, max_iteration, solver)
 model.predict_logistic_regression('fail')
+model.graph_results('fail')
+
+solver = 'lbfgs'
+penalty = 'l2'
+model.train_logistic_regression(penalty, max_iteration, solver)
+model.predict_logistic_regression('fail')
+model.graph_results('fail')
 
 # max_iteration = 1000
 # model.train_LRSD(max_iteration)

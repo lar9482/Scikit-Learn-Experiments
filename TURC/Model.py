@@ -3,11 +3,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn
 import math
+
+import traceback
+
 import graph
 from graph import *
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 
@@ -60,37 +67,46 @@ class Model:
 		self.index_test = self.index_test.reshape(-1, 1)
 		self.fail_test = self.fail_test.reshape(-1, 1)
 
-	def train_logistic_regression(self, Penalty = 'l2', maxIterations = 1000, Solver = 'lbfgs'):
-		self.Model = LogisticRegression(penalty = Penalty, max_iter = maxIterations, solver = Solver)
-		self.Model.fit(self.index_train, self.fail_train)
 
-	def predict_logistic_regression(self, testSet):
-		if (testSet == 'index'):
-			print(self.index_test)
-			print('Predicted output on index_test:')
+	def train_model(self, modelName, algoName, maxIterations = 1000, coFactors = None):
+		model_Name = ''
+		if (modelName == 'LR'):
+			self.Model = LogisticRegression(penalty = coFactors, max_iter = maxIterations, solver = algoName)
+			self.Model.fit(self.index_train, self.fail_train)
+			model_Name = 'Logistic-Regression '
+
+		elif(modelName == 'SVR'):
+			self.Model = SVR(kernel = algoName, max_iter = maxIterations)
+			self.Model.fit(self.index_train, self.fail_train)
+			model_Name = 'Support-Vector-Machine '
+
+		elif (modelName == 'DTR'):
+			self.Model = DecisionTreeRegressor()
+			self.Model.fit(self.index_train, self.fail_train)
+			model_Name = 'Decision-Tree '
+
+		elif (modelName == 'RFR'):
+			self.Model = RandomForestRegressor(n_estimators = maxIterations)
+			self.Model.fit(self.index_train, self.fail_train)
+			model_Name = 'Random-Forest '
+
+		return model_Name
+
+
+	def predict_model(self, testSet):
+		if (testSet == 'index'):	
 			self.index_predicted = self.Model.predict(self.index_test)
-			print(self.index_predicted)
-
-			#Calculating statistics on this computation
-			self.calculate_statistics()
-
+			
 		elif (testSet == 'fail'):
-			print(self.fail_test)
-			print('Predicted output on fail_test:')
 			self.fail_predicted = self.Model.predict(self.fail_test)
-			print(self.fail_predicted)
 
-			self.calculate_RMSE(self.fail_test, self.fail_predicted)
-			self.calculate_F_Score(self.fail_test, self.fail_predicted)
-			self.calculate_AIC()
-
-	def graph_results(self, set_name, trainingModel, penality, maxIteration, solver):
+	def graph_results(self, modelName, names, stats):
 		try:
-			Graph = graph(self.fail_test, self.fail_predicted, set_name, trainingModel, penality, maxIteration, solver, self.RMSE, self.F_Score, self.AIC)
+			Graph = graph(self.fail_test, self.fail_predicted, modelName, names, stats)
 			Graph.save_graph()
 			Graph.clear_graph()
 		except:
-			print('Params are not right')
+			traceback.print_exc()
 
 	def calculate_RMSE(self, test_set, predicted_set):
 		self.RMSE = mean_squared_error(test_set.reshape(1, -1)[0], predicted_set, squared = False)
@@ -107,29 +123,63 @@ class Model:
 		else:
 			self.AIC = 2*(numParams - math.log(self.RMSE))
 
-	def calculate_statistics(self, test_set, predicted_set):
-		self.calculate_RMSE(test_set, predicted_set)
-		self.calculate_F_Score(test_set, predicted_set)
+	def calculate_statistics(self):
+		self.calculate_RMSE(self.fail_test, self.fail_predicted)
+		self.calculate_F_Score(self.fail_test, self.fail_predicted)
 		self.calculate_AIC()
+
+		return [self.RMSE, self.F_Score, self.AIC]
+
+	def save_data(self, dataSetName, sheetName):
+		df = pd.DataFrame({
+			"FT": self.fail_test.reshape(1, -1)[0],
+			"FP": self.fail_predicted,
+			"RMSE": self.RMSE,
+			"F_Score": self.F_Score,
+			"AIC": self.AIC
+			})
+
+		dirName = dataSetName + '.xlsx'
+
+		excelWriter = pd.ExcelWriter(dirName)
+		df.to_excel(excelWriter, sheet_name = sheetName, index = False)
 		
+		excelWriter.save()
+
+	#NOTE:
+	#covariant factors(coFactors) can be metrics like 'penalities' etc.
+	@staticmethod
+	def runTests(dataSets, modelName, algoNames, coFactors = []):
+		for i in dataSets:
+			model = Model('model_data.xlsx', i)
+			for j in algoNames:
+				for l in coFactors:
+					max_iteration = 1000
+					model_Name = ''
+					try:
+						model_Name = model.train_model(modelName, j, max_iteration, l)
+					except:
+						print('Failed to fit %s using %s' % (l, j))
+						continue
+
+					while max_iteration <= 20000:
+						model_Name = model.train_model(modelName, j, max_iteration, l)
+						model.predict_model('fail')
+
+						names = [i, j, l, str(max_iteration)]
+						names = ' '.join([i for i in names])
+						stats = model.calculate_statistics()
+						
+						model.graph_results(model_Name, names, stats)
+						model.save_data(i, names)
+						max_iteration = max_iteration + 1000
+
 
 dataSets = ['SYS1', 'SYS2', 'SYS3', 'CSR1', 'CSR2']
-algoNames = ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
+optimizeAlgorithms = ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
 penalities = ['l1', 'l2', 'elasticnet', 'none']
 
-for i in dataSets:
-	model = Model('model_data.xlsx', i)
-	for j in algoNames:
-		for l in penalities:
-			max_iteration = 1000
-			try:
-				model.train_logistic_regression(l, max_iteration, j)
-			except:
-				print('Failed to fit %s using %s' % (l, j))
-				continue
+modelName = 'LR'
 
-			while max_iteration <= 5000:
-				model.train_logistic_regression(l, max_iteration, j)
-				model.predict_logistic_regression('fail')
-				model.graph_results(i, 'Logistic-Regression', l, max_iteration, j)
-				max_iteration = max_iteration + 1000
+
+Model.runTests(dataSets, modelName, optimizeAlgorithms, penalities)

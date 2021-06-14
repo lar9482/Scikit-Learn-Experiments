@@ -30,7 +30,7 @@ class graph:
 
 	def save_graph(self):
 		self.build_graph()
-		plt.savefig(self.title)
+		plt.savefig(os.path.join(self.directory, self.title))
 
 	def clear_graph(self):
 		plt.clf()

@@ -3,11 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn
 import math
-
+import os
 import traceback
 
 import graph
 from graph import *
+
+import DataSave
+from DataSave import *
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -22,11 +25,12 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import mean_squared_error
 
 class Model:
-	def __init__(self, dataSetName, sheetName, testSize = 0.2):
+	def __init__(self, dataSetName, sheetName, path, testSize = 0.2):
 		self.dataSet = pd.read_excel(dataSetName, sheetName)
 		self.fail_indexes = np.array(self.dataSet['FN'])
 		self.fail_times = np.array(self.dataSet['FT'])
-		
+		self.excelWriter = pd.ExcelWriter(os.path.join(path, sheetName) + '.xlsx')
+
 		self.scale_data()
 
 		self.index_train, self.index_test, self.fail_train, self.fail_test = train_test_split(self.fail_indexes, self.fail_times, test_size = testSize)
@@ -100,9 +104,9 @@ class Model:
 		elif (testSet == 'fail'):
 			self.fail_predicted = self.Model.predict(self.fail_test)
 
-	def graph_results(self, modelName, names, stats):
+	def graph_results(self, modelName, names, path):
 		try:
-			Graph = graph(self.fail_test, self.fail_predicted, modelName, names, stats)
+			Graph = graph(self.fail_test, self.fail_predicted, modelName, names, path)
 			Graph.save_graph()
 			Graph.clear_graph()
 		except:
@@ -117,7 +121,7 @@ class Model:
 		if (isinstance(self.F_Score, (float)) is False):
 			self.F_Score = 'Zero_Division detected'
 
-	def calculate_AIC(self, numParams = 3):
+	def calculate_AIC(self, numParams = 4):
 		if (self.RMSE == 0):
 			print('calculate RMSE first')
 		else:
@@ -128,8 +132,6 @@ class Model:
 		self.calculate_F_Score(self.fail_test, self.fail_predicted)
 		self.calculate_AIC()
 
-		return [self.RMSE, self.F_Score, self.AIC]
-
 	def save_data(self, dataSetName, sheetName):
 		df = pd.DataFrame({
 			"FT": self.fail_test.reshape(1, -1)[0],
@@ -139,47 +141,51 @@ class Model:
 			"AIC": self.AIC
 			})
 
-		dirName = dataSetName + '.xlsx'
-
-		excelWriter = pd.ExcelWriter(dirName)
-		df.to_excel(excelWriter, sheet_name = sheetName, index = False)
+		df.to_excel(self.excelWriter, sheet_name = sheetName, index = False)
 		
-		excelWriter.save()
-
+		self.excelWriter.save()
+	
+	def close_writer(self):
+		self.excelWriter.close()
 	#NOTE:
 	#covariant factors(coFactors) can be metrics like 'penalities' etc.
 	@staticmethod
 	def runTests(dataSets, modelName, algoNames, coFactors = []):
-		for i in dataSets:
-			model = Model('model_data.xlsx', i)
-			for j in algoNames:
-				for l in coFactors:
+		for data_Sets in dataSets:
+			# model = Model('model_data.xlsx', data_Sets)
+			#DataSet, algoName, coFactors, max_iteration
+
+			for algorithms in algoNames:
+				for variant in coFactors:
 					max_iteration = 1000
 					model_Name = ''
+					names = [data_Sets, algorithms, variant]
+					directory = DataSave.createDirectoryPath(names)
+					os.makedirs(directory)
+					
+					model = Model('model_data.xlsx', data_Sets, directory)
+					names.append(str(max_iteration))
 					try:
-						model_Name = model.train_model(modelName, j, max_iteration, l)
+						model_Name = model.train_model(modelName, algorithms, max_iteration, variant)
 					except:
-						print('Failed to fit %s using %s' % (l, j))
+						print('Failed to fit %s using %s' % (variant, algorithms))
 						continue
-
+					
 					while max_iteration <= 20000:
-						model_Name = model.train_model(modelName, j, max_iteration, l)
+						model_Name = model.train_model(modelName, algorithms, max_iteration, variant)
 						model.predict_model('fail')
-
-						names = [i, j, l, str(max_iteration)]
-						names = ' '.join([i for i in names])
-						stats = model.calculate_statistics()
+						model.calculate_statistics()
 						
-						model.graph_results(model_Name, names, stats)
-						model.save_data(i, names)
+						model.graph_results(modelName = model_Name, names = ' '.join([i for i in names]), path = directory)
+						model.save_data(dataSetName = data_Sets, sheetName = ' '.join([i for i in names]))
 						max_iteration = max_iteration + 1000
+						print('Processed' + ' '.join([i for i in names]))
+						names = [data_Sets, algorithms, variant, str(max_iteration)]
 
 
 dataSets = ['SYS1', 'SYS2', 'SYS3', 'CSR1', 'CSR2']
 optimizeAlgorithms = ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
 penalities = ['l1', 'l2', 'elasticnet', 'none']
-
 modelName = 'LR'
-
 
 Model.runTests(dataSets, modelName, optimizeAlgorithms, penalities)

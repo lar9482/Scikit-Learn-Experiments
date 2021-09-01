@@ -14,8 +14,8 @@ class graph:
 		
 		
 	def initialize_Graph(self):
-		plt.xlabel('failure_numbers')
-		plt.ylabel('failure_times')
+		plt.xlabel('failure_times')
+		plt.ylabel('failure_numbers')
 		plt.title(self.title)
 
 	def _select_color_and_marker(self):
@@ -57,6 +57,10 @@ class graph:
 		# legend = plt.legend(tuple(self.graphList), self.labelList, loc = 'upper right')
 		# plt.gca().add_artist(legend)
 		plt.legend()
+
+	def set_x_and_y_bound(self, x_bound, y_bound):
+		plt.ylim(0, y_bound)
+		plt.xlim(0, x_bound)
 
 	def save_graph(self):
 		plt.savefig(os.path.join(self.directory, self.title))

@@ -1,0 +1,11 @@
+The main code is in 'Model.py'
+
+Most of the sci-kit learn implementations are above line 200
+
+Lines 200-267 are I/O implementations for updating the statistics using pandas.
+Lines 272-284 are driver methods. 
+
+Again, this file does implement some bad practices(long functions, implementing everything in a single file, etc...)
+so don't use this as an example of implementation.
+
+I'll try to clean up the code ASAP.

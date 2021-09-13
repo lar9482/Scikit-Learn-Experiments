@@ -3,9 +3,13 @@ import os
 import random
 
 class graph:
-	def __init__(self, modelName, path):
-		self.title = modelName
-		self.directory = path
+	def __init__(self, modelName, algorithm, variant = None):
+		# self.title = modelName + ': ' + algorithm + ' applied to ' + variant
+		if variant is not None:
+			self.title = modelName + algorithm + variant
+		else:
+			self.title = modelName + algorithm
+		self.directory = os.getcwd()
 		self.allMarkers = ['^', 's', 'p', 'h', 'x', 'd']
 		self.allColors = ['b', 'g', 'r', 'c', 'm', 'y']
 		self.usedColors = {}
@@ -14,6 +18,7 @@ class graph:
 		
 		
 	def initialize_Graph(self):
+		print(self.title)
 		plt.xlabel('failure_times')
 		plt.ylabel('failure_numbers')
 		plt.title(self.title)

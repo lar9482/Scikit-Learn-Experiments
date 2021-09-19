@@ -117,18 +117,18 @@ class Model:
 		self.index_train = self.index_train.reshape(-1, 1)
 		self.index_test = self.index_test.reshape(-1, 1)
 
-	def brute_force_CV(self, modelName, params):
+	def brute_force_CV(self, modelName, params, maxIterations = 1000, cvSplit = 20):
 		print(self.time_train)
 		print(self.index_train.ravel())
 
 		if (modelName == 'Logistic-Regression'):
-			self.Model = GridSearchCV(LogisticRegression(), params, scoring = 'r2', cv=20)
+			self.Model = GridSearchCV(LogisticRegression(), params, scoring = 'r2', cv=cvSplit)
 
 		elif(modelName == 'Support-Vector-Machine'):
-			self.Model = GridSearchCV(SVR(), params, scoring = 'r2', cv=20)
+			self.Model = GridSearchCV(SVR(), params, scoring = 'r2', cv=cvSplit)
 		elif (modelName == 'Multi-Layer-Perceptron'):
 			print('Neural Network')
-			self.Model = GridSearchCV(MLPRegressor(shuffle = False), params, scoring = 'r2', cv=20)
+			self.Model = GridSearchCV(MLPRegressor(shuffle = False, max_iter = maxIterations), params, scoring = 'r2', cv=cvSplit)
 		print('Test1')
 		self.Model = self.Model.fit(self.fail_times, self.fail_indexes.ravel())
 		print('Test2')
@@ -459,10 +459,8 @@ hidden_layer_sizes = [100, 100]
 alpha = [0.0001, 0.0002, 0.0003, 0.0004, 0.0005, 0.0006, 0.0007, 0.0008, 0.0009, 0.001]
 beta_1 = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
 beta_2 = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-early_stopping = [False, True]
-validation_fraction = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-params = {'hidden_layer_sizes': hidden_layer_sizes, 'activation': covariants, 'solver': algorithms, 'alpha' : alpha, 'beta_1' : beta_1, 'beta_2' : beta_2, 'early_stopping' : early_stopping, 'validation_fraction' : validation_fraction}
+params = {'hidden_layer_sizes': hidden_layer_sizes, 'activation': covariants, 'solver': algorithms, 'alpha' : alpha, 'beta_1' : beta_1, 'beta_2' : beta_2}
 
 modelName = 'Multi-Layer-Perceptron'
-Model.runTestsWithCofactors(dataSets, modelName, algorithms, covariants, inputColumnName, outputColumnName, iter_diff, iter_bound, statWriter, shuffled, testSize)
-# Model.runCV(params = params, dataSets = dataSets, modelName = modelName, inputColumnName = inputColumnName, outputColumnName = outputColumnName, excelWriter = statWriter)
+# Model.runTestsWithCofactors(dataSets, modelName, algorithms, covariants, inputColumnName, outputColumnName, iter_diff, iter_bound, statWriter, shuffled, testSize)
+Model.runCV(params = params, dataSets = dataSets, modelName = modelName, inputColumnName = inputColumnName, outputColumnName = outputColumnName, excelWriter = statWriter)
